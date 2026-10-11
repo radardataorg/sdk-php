@@ -1,93 +1,199 @@
-# sdk-php
+# RadarData SDK para PHP
 
+SDK oficial do [RadarData](https://radardata.com.br) para PHP 8.2+, com
+integração pronta para Laravel. Embrulha a API pública (`/api/v2`): consultas,
+Verify (verificação de identidade), Motor de Análises e webhooks.
 
+A API continua disponível para quem preferir chamá-la direto. Este pacote
+existe para você não precisar.
 
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/radardata.com.br/sdk-php.git
-git branch -M main
-git push -uf origin main
+```bash
+composer require radardata/sdk-php
 ```
 
-## Integrate with your tools
+## Começando
 
-* [Set up project integrations](https://gitlab.com/radardata.com.br/sdk-php/-/settings/integrations)
+```php
+use RadarData\RadarData;
 
-## Collaborate with your team
+$radar = new RadarData('seu-token-de-api');
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+$saldo = $radar->catalogo()->saldo();
+echo $saldo->emReais();            // 1.234,56
+echo $saldo->disponivelCentavos;   // 100000
+```
 
-## Test and Deploy
+O token é o **token de API**, criado no painel, e não o da sua sessão do
+painel. Ele carrega escopos (`consultas`, `verify`, `analises`, `leitura`,
+`webhooks`): uma chamada fora do escopo volta `SemEscopo`.
 
-Use the built-in continuous integration in GitLab.
+## Laravel
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+O pacote se registra sozinho. Publique a config se quiser editá-la:
 
-***
+```bash
+php artisan vendor:publish --tag=radardata-config
+```
 
-# Editing this README
+```dotenv
+RADARDATA_TOKEN=seu-token
+RADARDATA_WEBHOOK_SECRET=o-segredo-que-assina-seus-webhooks
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```php
+use RadarData\Laravel\RadarDataFacade as RadarData;
 
-## Suggestions for a good README
+$sessao = RadarData::verify()->criarSessao('kyc-cnpj', ['cnpj' => '11222333000181']);
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## Consultas
 
-## Name
-Choose a self-explaining name for your project.
+```php
+$resultado = $radar->consultas()->executar('cpf', '12345678909');
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Gasta saldo. O retorno vem como array porque cada serviço devolve um corpo
+diferente e a lista cresce: tipar tudo aqui faria o SDK desatualizar a cada
+serviço novo sem ninguém perceber.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+Para saber o que a **sua** conta pode consultar, e por quanto:
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+```php
+foreach ($radar->catalogo()->servicos() as $s) {
+    echo "{$s->slug}: {$s->nome} ({$s->precoCentavos} centavos)\n";
+}
+```
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## Verify
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```php
+$sessao = $radar->verify()->criarSessao(
+    fluxo: 'kyc-cnpj',                      // uuid do fluxo ou o alias dele
+    input: ['cnpj' => '11222333000181'],
+    opcoes: ['reference_id' => 'pedido-4471', 'redirect_url' => 'https://seusite.com/ok'],
+);
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+// Mande a pessoa para cá:
+echo $sessao->url;
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+O resultado chega por **webhook**. Dá para consultar também:
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```php
+$sessao = $radar->verify()->sessao($sessao->id);
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+if ($sessao->concluida() && $sessao->aprovada()) {
+    // ...
+}
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+> **Criar sessão não é idempotente.** Se der timeout, **não chame de novo às
+> cegas**: você pagaria duas sessões. Mande um `reference_id` seu e procure por
+> ele antes de criar outra.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## Análises
 
-## License
-For open source projects, say how it is licensed.
+Assíncrono: criar devolve o id, o resultado chega por webhook.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+```php
+$analise = $radar->analises()->criar('kyc-pf', ['cpf' => '12345678909']);
+$estado  = $radar->analises()->mostrar($analise['id']);
+```
+
+## Webhooks: conferir que o aviso é nosso
+
+```php
+use RadarData\Webhooks\Assinatura;
+
+Route::post('/radardata/webhook', function (Request $request) {
+    $evento = Assinatura::exigir(
+        $request->getContent(),                              // o corpo CRU
+        $request->header('X-RadarData-Signature'),
+        config('radardata.webhook_secret'),
+    );
+
+    // Deduplique: reenviamos em caso de falha.
+    $entrega = $request->header('X-RadarData-Delivery');
+
+    return response()->noContent();
+});
+```
+
+Três coisas que costumam dar errado aqui, e valem a leitura:
+
+**Use o corpo cru.** `$request->getContent()`, não o array decodificado.
+Reserializar muda espaços e ordem das chaves, o HMAC muda junto e a conferência
+falha sem motivo aparente. É o erro mais comum de qualquer integração deste
+tipo, e há um teste neste repositório que o demonstra.
+
+**Deduplique pelo `X-RadarData-Delivery`.** Reenviamos quando a entrega falha,
+então o mesmo evento pode chegar duas vezes.
+
+**A assinatura prova origem e conteúdo, não a hora.** O timestamp e o id de
+entrega viajam em cabeçalho, fora do corpo assinado, então ela não protege
+contra o reenvio de um aviso antigo e autêntico por quem o tenha interceptado.
+A dedup acima é a defesa prática.
+
+## Erros
+
+Cada situação tem a sua classe, para você não comparar strings:
+
+| Classe | Quando |
+|---|---|
+| `NaoAutenticado` | 401, token ausente, inválido ou revogado |
+| `SaldoInsuficiente` | 402, a conta não tem saldo para a operação |
+| `SemEscopo` | 403, o token não tem o escopo daquela rota |
+| `NaoEncontrado` | 404 |
+| `EntradaInvalida` | 422, veja `->corpo` para os campos |
+| `MuitasTentativas` | 429 |
+| `ErroDoServidor` | 5xx, falha nossa |
+| `FalhaDeRede` | **sem resposta**: timeout, DNS, conexão recusada |
+
+Todas estendem `ErroRadarData`, que traz `->codigo`, `->status` e `->corpo`.
+
+`FalhaDeRede` é separado de propósito: ali o SDK **não sabe** se a operação
+aconteceu. Numa chamada que gasta saldo isso importa, e o caminho é consultar
+pela mesma chave de idempotência, não repetir às cegas.
+
+## Repetição automática, e por que ela não é global
+
+O SDK repete em 429 e 5xx **somente** nas chamadas em que manda
+`Idempotency-Key`: consultas, análises e operações. A mesma chave faz a API
+devolver a resposta anterior em vez de cobrar de novo.
+
+Criar sessão de Verify **não** tem idempotência na API, então o SDK **não
+repete** ali, qualquer que seja a configuração. Repetir criaria uma segunda
+sessão faturável, e um SDK que cobra duas vezes do seu cliente é pior do que
+um SDK que devolve erro.
+
+A chave é gerada automaticamente quando você não passa uma. Guarde a sua se
+quiser poder reconsultar o resultado depois de um timeout:
+
+```php
+$chave = \RadarData\Recursos\Consultas::chave();
+$radar->consultas()->executar('cpf', '12345678909', chaveIdempotencia: $chave);
+```
+
+## Apontando para outro ambiente
+
+```php
+use RadarData\{Configuracao, RadarData};
+
+$radar = new RadarData(new Configuracao(
+    token: 'seu-token',
+    base: 'https://api.radardata.dev.local/api/v2',
+    timeout: 10,
+));
+```
+
+## Desenvolvimento
+
+```bash
+composer install
+vendor/bin/phpunit
+vendor/bin/pint
+```
+
+## Licença
+
+MIT.

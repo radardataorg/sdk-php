@@ -1,0 +1,35 @@
+{
+    "name": "radardata/sdk-php",
+    "description": "SDK oficial do RadarData para PHP e Laravel: consultas, Verify, Motor de Analises e webhooks.",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://radardata.com.br",
+    "keywords": ["radardata", "kyc", "verify", "consultas", "serasa", "serpro", "laravel"],
+    "authors": [
+        { "name": "RadarData", "homepage": "https://radardata.com.br" }
+    ],
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "guzzlehttp/guzzle": "^7.8"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": { "RadarData\\": "src/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "RadarData\\Testes\\": "tests/" }
+    },
+    "extra": {
+        "laravel": {
+            "providers": ["RadarData\\Laravel\\RadarDataServiceProvider"],
+            "aliases": { "RadarData": "RadarData\\Laravel\\RadarDataFacade" }
+        }
+    },
+    "config": { "sort-packages": true },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
