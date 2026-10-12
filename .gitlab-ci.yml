@@ -12,10 +12,13 @@
 # estar lá faz ele não achar nada e registrar nada.
 #
 # Variáveis (Settings → CI/CD → Variables):
-#   GITHUB_TOKEN       PAT do GitHub com permissão de escrita no repositório
-#                      (classic: `repo`; fine-grained: Contents · Read/Write).
-#                      MASKED, senão ele aparece no log em qualquer erro de push.
-#   GITHUB_REPO        `owner/repo` no GitHub, ex.: radardata/sdk-php
+#   GITHUB_DEPLOY_KEY_B64  chave privada (base64) da deploy key do repositório no
+#                      GitHub. Deploy key e não PAT: ela tem escrita em UM
+#                      repositório só, não expira e não alcança mais nada da
+#                      conta. PAT, mesmo restrito, expira e falha calado meses
+#                      depois. Guardada em base64 para poder ir MASKED, que o
+#                      GitLab não faz com valor de várias linhas.
+#   GITHUB_REPO        `owner/repo` no GitHub, ex.: radardataorg/sdk-php
 #   PACKAGIST_USUARIO  o usuário do Packagist
 #   PACKAGIST_TOKEN    API token do Packagist (masked). Profile → Show API Token
 #
@@ -52,19 +55,22 @@ espelhar-no-github:
     # empurra: o push é recusado com "shallow update not allowed".
     GIT_DEPTH: 0
   before_script:
-    - apk add --no-cache git >/dev/null
+    - apk add --no-cache git openssh-client >/dev/null
   script:
     - |
-      test -n "$GITHUB_TOKEN" || { echo "ERRO: GITHUB_TOKEN não configurado."; exit 1; }
-      test -n "$GITHUB_REPO" || { echo "ERRO: GITHUB_REPO não configurado (owner/repo)."; exit 1; }
-    - git config user.email "$GITLAB_USER_EMAIL"
-    - git config user.name "$GITLAB_USER_NAME"
-    # Empurra `main` e a tag, e NADA MAIS. De propósito: o GitLab é privado e
+      test -n "$GITHUB_DEPLOY_KEY_B64" || { echo "ERRO: GITHUB_DEPLOY_KEY_B64 nao configurado."; exit 1; }
+      test -n "$GITHUB_REPO" || { echo "ERRO: GITHUB_REPO nao configurado (owner/repo)."; exit 1; }
+    - |
+      mkdir -p ~/.ssh && chmod 700 ~/.ssh
+      echo "$GITHUB_DEPLOY_KEY_B64" | base64 -d > ~/.ssh/id_ed25519
+      chmod 600 ~/.ssh/id_ed25519
+      ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+        # Empurra `main` e a tag, e NADA MAIS. De propósito: o GitLab é privado e
     # pode ter branch de experimento; espelhar tudo publicaria trabalho que
     # ninguém decidiu publicar. Aqui o que vira público é explícito.
     - git fetch origin main --quiet
-    - git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git" "origin/main:refs/heads/main"
-    - git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git" "refs/tags/${CI_COMMIT_TAG}"
+    - git push "git@github.com:${GITHUB_REPO}.git" "origin/main:refs/heads/main"
+    - git push "git@github.com:${GITHUB_REPO}.git" "refs/tags/${CI_COMMIT_TAG}"
     - echo "Espelhado em https://github.com/${GITHUB_REPO} na tag ${CI_COMMIT_TAG}"
   rules:
     - if: '$CI_COMMIT_TAG'
