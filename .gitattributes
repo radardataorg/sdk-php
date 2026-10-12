@@ -1,0 +1,14 @@
+# O que NAO vai no pacote que o cliente instala.
+#
+# O Composer monta o dist a partir do repositorio, e sem isto o cliente recebe
+# a nossa pipeline junto: nomes de variavel de CI e o desenho de onde o codigo
+# mora e como ele e publicado. Nenhum segredo, mas tambem nada que o cliente
+# precise para usar o SDK.
+#
+# `composer install --prefer-dist` (o padrao, e o que o CI de quem nos usa faz)
+# respeita export-ignore. Quem quiser os testes clona o repositorio.
+/.gitattributes  export-ignore
+/.gitignore      export-ignore
+/.gitlab-ci.yml  export-ignore
+/phpunit.xml     export-ignore
+/tests           export-ignore
