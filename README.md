@@ -46,6 +46,44 @@ use RadarData\Laravel\RadarDataFacade as RadarData;
 $sessao = RadarData::verify()->criarSessao('kyc-cnpj', ['cnpj' => '11222333000181']);
 ```
 
+## Seus proprios fluxos de analise
+
+Da para montar o pipeline por codigo, em vez de desenha-lo no painel: voce
+manda a definicao inteira num array e recebe um fluxo publicado, pronto para
+rodar com `analises()->criar()`.
+
+```php
+$definicao = [
+    'entrada' => ['placa' => ['tipo' => 'texto', 'obrigatorio' => true]],
+    'etapas' => [
+        ['chave' => 'nacional', 'tipo' => 'consulta', 'servico' => 'consulta-nacional',
+         'documento' => '{{entrada.placa}}', 'opcional' => true, 'paralelo' => true],
+    ],
+    'regras' => [],
+    'saidas' => [['chave' => 'nacional', 'de' => 'nacional']],
+];
+
+// Quanto cada analise vai custar, sem gravar nada.
+echo $radar->fluxos()->validar($definicao)['preco'];
+
+$radar->fluxos()->publicar('laudo', 'Laudo', 'VEICULO', $definicao);
+
+// E a partir daqui e um produto como outro qualquer.
+$radar->analises()->criar('laudo', ['placa' => 'ABC1D23']);
+```
+
+Duas coisas que valem saber antes:
+
+- **O preco nao vai no pedido.** Ele e calculado pelas bases que o fluxo
+  consulta, com a tabela da sua conta, e cobra o caminho mais caro. Chame
+  `validar()` antes de publicar para ver o numero.
+- **Escopo `fluxos`, separado de `analises`.** Publicar fluxo escolhe o que e
+  consultado e que regra reprova alguem. Use um token de provisionamento aqui,
+  e deixe o token do dia a dia so com `analises`.
+
+Publicar e idempotente pelo conteudo: mandar a mesma definicao de novo nao cria
+versao nova, entao da para chamar isto a cada deploy.
+
 ## Consultas
 
 ```php

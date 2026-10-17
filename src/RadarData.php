@@ -5,6 +5,7 @@ namespace RadarData;
 use RadarData\Recursos\Analises;
 use RadarData\Recursos\Catalogo;
 use RadarData\Recursos\Consultas;
+use RadarData\Recursos\Fluxos;
 use RadarData\Recursos\Verify;
 use RadarData\Recursos\Webhooks;
 
@@ -51,6 +52,12 @@ class RadarData
     public function analises(): Analises
     {
         return new Analises($this->transporte);
+    }
+
+    /** Seus proprios fluxos de analise, provisionados por codigo. Escopo `fluxos`. */
+    public function fluxos(): Fluxos
+    {
+        return new Fluxos($this->transporte);
     }
 
     public function webhooks(): Webhooks
