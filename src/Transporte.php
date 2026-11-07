@@ -132,6 +132,7 @@ class Transporte
             if ($envelope) {
                 return $corpo;
             }
+
             // `data` quando a rota embrulha (catalogo, saldo, analises) e o
             // corpo inteiro quando nao (sessao de Verify). Devolver sempre o
             // conteudo util poupa quem chama de saber qual rota faz o que.
