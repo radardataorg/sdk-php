@@ -78,6 +78,18 @@ class MonitoramentosJudiciaisTest extends TestCase
         ], $vistos);
     }
 
+    public function test_listar_e_eventos_devolvem_a_paginacao_junto(): void
+    {
+        $meta = ['pagina' => 1, 'paginas' => 3, 'total' => 60];
+        $radar = $this->radar([
+            new Response(200, [], json_encode(['data' => [['id' => 'a']], 'meta' => $meta])),
+            new Response(200, [], json_encode(['data' => [], 'meta' => $meta])),
+        ]);
+
+        $this->assertSame(['data' => [['id' => 'a']], 'meta' => $meta], $radar->monitoramentosJudiciais()->listar());
+        $this->assertSame($meta, $radar->monitoramentosJudiciais()->eventos('a')['meta']);
+    }
+
     public function test_catalogo_diz_onde_se_usa_e_marca_o_monitoramento(): void
     {
         [$cpf, $mon] = $this->radar([new Response(200, [], json_encode(['data' => [

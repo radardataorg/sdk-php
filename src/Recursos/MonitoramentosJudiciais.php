@@ -32,10 +32,10 @@ class MonitoramentosJudiciais
         return $this->t->pedir('POST', 'monitoramentos-judiciais', ['servico' => $servico] + $entrada);
     }
 
-    /** @return array<int, array<string, mixed>> */
+    /** @return array{data: array<int, array<string, mixed>>, meta: array{pagina?: int, paginas?: int, total?: int}} */
     public function listar(int $pagina = 1, int $porPagina = 25): array
     {
-        return $this->t->pedir('GET', 'monitoramentos-judiciais', null, ['page' => $pagina, 'per_page' => $porPagina]);
+        return $this->t->pedir('GET', 'monitoramentos-judiciais', null, ['page' => $pagina, 'per_page' => $porPagina], envelope: true);
     }
 
     /** @return array<string, mixed> */
@@ -57,10 +57,10 @@ class MonitoramentosJudiciais
     /**
      * O que o monitoramento achou. O conteudo some da RadarData em 30 dias: guarde do seu lado.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array{data: array<int, array<string, mixed>>, meta: array{pagina?: int, paginas?: int, total?: int}}
      */
     public function eventos(string $id, int $pagina = 1, int $porPagina = 25): array
     {
-        return $this->t->pedir('GET', 'monitoramentos-judiciais/'.rawurlencode($id).'/eventos', null, ['page' => $pagina, 'per_page' => $porPagina]);
+        return $this->t->pedir('GET', 'monitoramentos-judiciais/'.rawurlencode($id).'/eventos', null, ['page' => $pagina, 'per_page' => $porPagina], envelope: true);
     }
 }

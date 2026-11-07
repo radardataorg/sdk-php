@@ -145,7 +145,7 @@ Cobrança adiantada a cada 30 dias. A novidade chega pelo webhook
 
 ```php
 $m = $radar->monitoramentosJudiciais()->criar('monitoramento-documento', ['documento' => '12345678909', 'nome' => 'Fornecedor principal']);
-$eventos = $radar->monitoramentosJudiciais()->eventos($m['id']);
+$eventos = $radar->monitoramentosJudiciais()->eventos($m['id']); // ['data' => [...], 'meta' => ['paginas' => ...]]
 $radar->monitoramentosJudiciais()->cancelar($m['id']); // vale até o fim do período pago
 ```
 
