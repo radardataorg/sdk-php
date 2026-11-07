@@ -6,6 +6,7 @@ use RadarData\Recursos\Analises;
 use RadarData\Recursos\Catalogo;
 use RadarData\Recursos\Consultas;
 use RadarData\Recursos\Fluxos;
+use RadarData\Recursos\MonitoramentosJudiciais;
 use RadarData\Recursos\Verify;
 use RadarData\Recursos\Webhooks;
 
@@ -52,6 +53,12 @@ class RadarData
     public function analises(): Analises
     {
         return new Analises($this->transporte);
+    }
+
+    /** Monitoramento judicial, cobrado por ciclo de 30 dias. Escopo `consultas`. */
+    public function monitoramentosJudiciais(): MonitoramentosJudiciais
+    {
+        return new MonitoramentosJudiciais($this->transporte);
     }
 
     /** Seus proprios fluxos de analise, provisionados por codigo. Escopo `fluxos`. */

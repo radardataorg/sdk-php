@@ -59,6 +59,8 @@ class Transporte
         ?array $corpo = null,
         array $query = [],
         ?string $chaveIdempotencia = null,
+        // O corpo inteiro, com `meta`, em vez de so o `data`: listas paginadas.
+        bool $envelope = false,
     ): array {
         $cabecalhos = [
             'Authorization' => 'Bearer '.$this->config->token,
@@ -112,14 +114,14 @@ class Transporte
                 continue;
             }
 
-            return $this->interpretar($resposta);
+            return $this->interpretar($resposta, $envelope);
         }
 
         throw $ultimo ?? new ErroRadarData('Falha desconhecida no transporte.');
     }
 
     /** @return array<string, mixed> */
-    private function interpretar(Response $resposta): array
+    private function interpretar(Response $resposta, bool $envelope = false): array
     {
         $status = $resposta->getStatusCode();
         $cru = (string) $resposta->getBody();
@@ -127,6 +129,10 @@ class Transporte
         $corpo = is_array($json) ? $json : [];
 
         if ($status >= 200 && $status < 300) {
+            if ($envelope) {
+                return $corpo;
+            }
+
             // `data` quando a rota embrulha (catalogo, saldo, analises) e o
             // corpo inteiro quando nao (sessao de Verify). Devolver sempre o
             // conteudo util poupa quem chama de saber qual rota faz o que.

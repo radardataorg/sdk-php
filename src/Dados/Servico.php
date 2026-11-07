@@ -18,6 +18,10 @@ class Servico
         /** CPF, CNPJ, PLACA... o que a consulta espera receber. */
         public readonly ?string $tipoDocumento,
         public readonly int $precoCentavos,
+        /** Onde se usa: `/api/v2/{slug}`, ou `/api/v2/monitoramentos-judiciais` no monitoramento. */
+        public readonly ?string $rota = null,
+        /** Monitoramento judicial: cria por `monitoramentosJudiciais()`, nao por `consultas()`. */
+        public readonly bool $monitoramento = false,
     ) {}
 
     /** @param array<string, mixed> $d */
@@ -30,6 +34,8 @@ class Servico
             descricao: $d['descricao'] ?? null,
             tipoDocumento: $d['tipo_documento'] ?? null,
             precoCentavos: (int) ($d['preco'] ?? 0),
+            rota: $d['rota'] ?? null,
+            monitoramento: ($d['rota'] ?? null) === '/api/v2/monitoramentos-judiciais',
         );
     }
 }
