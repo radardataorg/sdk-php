@@ -4,6 +4,7 @@ namespace RadarData;
 
 use RadarData\Recursos\Analises;
 use RadarData\Recursos\Catalogo;
+use RadarData\Recursos\Certificados;
 use RadarData\Recursos\Consultas;
 use RadarData\Recursos\Documentos;
 use RadarData\Recursos\Eventos;
@@ -66,6 +67,12 @@ class RadarData
     }
 
     /** Monitoramento judicial, cobrado por ciclo de 30 dias. Escopo `consultas`. */
+    /** Certificado digital da empresa, para os autos do processo. Escopo `certificados`, so do ADMIN. */
+    public function certificados(): Certificados
+    {
+        return new Certificados($this->transporte);
+    }
+
     public function monitoramentosJudiciais(): MonitoramentosJudiciais
     {
         return new MonitoramentosJudiciais($this->transporte);

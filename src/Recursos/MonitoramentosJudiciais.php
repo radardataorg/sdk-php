@@ -63,4 +63,15 @@ class MonitoramentosJudiciais
     {
         return $this->t->pedir('GET', 'monitoramentos-judiciais/'.rawurlencode($id).'/eventos', null, ['page' => $pagina, 'per_page' => $porPagina], envelope: true);
     }
+
+    /**
+     * PDF da pagina do diario em que saiu um aviso, pelo `conteudo.pagina_pdf` do evento.
+     * Vem nulo quando o diario nao informa a pagina.
+     *
+     * @return array{conteudo: string, tipo: string, nome: string}
+     */
+    public function paginaDoDiario(string $id): array
+    {
+        return $this->t->baixar('diarios/paginas/'.rawurlencode($id));
+    }
 }
