@@ -72,4 +72,11 @@ class ContratoTest extends TestCase
         $r = $this->radar->eventos()->enviar('contrato.teste', 'contrato-php-evt-'.microtime(true), ['x' => 1]);
         $this->assertSame([], $r['data']['analises']);
     }
+
+    public function test_whatsapp_modelo_em_sandbox(): void
+    {
+        $r = $this->radar->mensagens()->enviar('+5511900000000', null, null, 'whatsapp', null, ['nome' => 'contrato_teste', 'parametros' => ['a']]);
+        $this->assertTrue($r['meta']['sandbox']);
+        $this->assertSame('whatsapp', $r['mensagem']['canal']);
+    }
 }

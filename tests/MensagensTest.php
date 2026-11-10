@@ -194,4 +194,19 @@ class MensagensTest extends TestCase
         $this->assertSame('/api/v2/operacoes/o1', $this->enviados[2]['request']->getUri()->getPath());
         $this->assertSame(['decisao' => 'ARQUIVAR', 'motivo' => 'Operacao conferida com o cliente.'], json_decode((string) $this->enviados[3]['request']->getBody(), true));
     }
+
+    public function test_whatsapp_com_modelo_numero_de_saida_e_lista_de_modelos(): void
+    {
+        $radar = $this->radar([
+            new Response(201, [], json_encode(['data' => self::ACEITA, 'meta' => ['preco' => 30]])),
+            new Response(200, [], json_encode(['data' => [['nome' => 'pedido_enviado', 'parametros' => 2]]])),
+        ]);
+
+        $radar->mensagens()->enviar('+5519984250269', null, 'pedido-1', 'whatsapp', str_repeat('n', 24), ['nome' => 'pedido_enviado', 'parametros' => ['Maria', '48213']]);
+        $modelos = $radar->mensagens()->modelos(str_repeat('n', 24));
+
+        $this->assertSame(['canal' => 'whatsapp', 'para' => '+5519984250269', 'modelo' => ['nome' => 'pedido_enviado', 'parametros' => ['Maria', '48213'], 'idioma' => 'pt_BR'], 'de' => str_repeat('n', 24)], json_decode((string) $this->enviados[0]['request']->getBody(), true));
+        $this->assertSame('de='.str_repeat('n', 24), $this->enviados[1]['request']->getUri()->getQuery());
+        $this->assertSame('pedido_enviado', $modelos[0]['nome']);
+    }
 }
