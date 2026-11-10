@@ -96,6 +96,16 @@ Gasta saldo. O retorno vem como array porque cada serviço devolve um corpo
 diferente e a lista cresce: tipar tudo aqui faria o SDK desatualizar a cada
 serviço novo sem ninguém perceber.
 
+Consulta demorada responde que está em andamento e avisa pelo webhook
+`consulta.concluida`. O resultado sai pelo `consulta_id`:
+
+```php
+$r = $radar->consultas()->resultado($consultaId);
+// $r['meta']['status']: em_andamento | concluida | erro | expirada; o dado em $r['data']
+```
+
+Erro terminal chega aqui como resposta, em `$r['error']`, e não como exceção.
+
 Para saber o que a **sua** conta pode consultar, e por quanto:
 
 ```php
@@ -190,6 +200,66 @@ $link = $r['pendencia']['url'] ?? null;
 > Até a 0.3.0 este método mandava `decisao` e a API recusava toda chamada com
 > 422. A partir da 0.4.0 manda `acao`, que é o contrato da API.
 
+## Mensagens (SMS)
+
+Escopo `mensagens`, que **não vem ligado por padrão**: marque ao criar o token.
+Cobra por mensagem aceita; o que falha volta para o saldo.
+
+```php
+$r = $radar->mensagens()->enviar(
+    '+5511999999999',
+    'Seu código de acesso é 482913.',
+    'pedido-48213-codigo',   // repetir com a mesma chave não manda de novo
+);
+
+$r['mensagem']['status'];   // "aceita": saiu para a operadora
+$r['meta']['saldo'];        // em centavos
+```
+
+- Até 160 caracteres. **Acento sai** antes do envio e **emoji recusa** a
+  mensagem (`EntradaInvalida`, `codigo` = `texto_invalido`), sem cobrar.
+- `aceita` não é entrega confirmada: para código de acesso, ofereça reenviar.
+- `envio_incerto` (`ErroDoServidor`, 504): não confirmamos se saiu e não foi
+  cobrado. Reenviar com chave nova pode fazer a pessoa receber duas.
+- `limite_destino` e `limite_diario` (`MuitasTentativas`): 5 por número por
+  hora e 1.000 por conta por dia.
+- O aviso chega pelos webhooks `mensagem.aceita` e `mensagem.falhou`.
+- **A resposta se perdeu?** O erro traz a chave usada em `$e->chaveIdempotencia`.
+  Repita com **ela**: `Conflito` (`idempotency_em_processamento`) quer dizer que
+  a primeira ainda está saindo; espere e repita com a mesma chave. Chave nova
+  pode fazer a pessoa receber duas. Para código de acesso, passe sempre uma
+  chave sua.
+
+```php
+$pagina = $radar->mensagens()->listar(1, 25);  // sem o texto
+$uma = $radar->mensagens()->obter($id);        // com o texto, por 30 dias
+```
+
+## Eventos
+
+O seu sistema conta o que aconteceu e a configuração do lado da RadarData
+decide que análises acordam. Evento sem gatilho configurado não é erro.
+
+```php
+$r = $radar->eventos()->enviar('pedido.criado', 'pedido-'.$pedido->id, ['valor' => 15000],
+    segredo: env('RADARDATA_EVENTOS_SECRET'),   // quando a origem exige assinatura
+);
+```
+
+## Operações (COAF)
+
+Para factoring: cada operação registrada é conferida, e a que precisa de olhar
+humano volta com `revisar`.
+
+```php
+$op = $radar->operacoes()->registrar(
+    ['cliente_documento' => '11222333000181', 'sacado_documento' => '52998224725', 'valor' => 150000],
+    'operacao-'.$titulo,   // repetir não cobra de novo
+);
+$pendentes = $radar->operacoes()->listar(revisar: true);
+$radar->operacoes()->decidir($op['id'], 'ARQUIVAR', 'Operação conferida com o cliente.');
+```
+
 ## Monitoramentos judiciais
 
 Cobrança adiantada a cada 30 dias. A novidade chega pelo webhook
@@ -248,6 +318,7 @@ Cada situação tem a sua classe, para você não comparar strings:
 | `SaldoInsuficiente` | 402, a conta não tem saldo para a operação |
 | `SemEscopo` | 403, o token não tem o escopo daquela rota |
 | `NaoEncontrado` | 404 |
+| `Conflito` | 409, a mesma chave ainda em andamento ou usada em outro pedido |
 | `EntradaInvalida` | 422, veja `->corpo` para os campos |
 | `MuitasTentativas` | 429 |
 | `ErroDoServidor` | 5xx, falha nossa |
@@ -262,8 +333,11 @@ pela mesma chave de idempotência, não repetir às cegas.
 ## Repetição automática, e por que ela não é global
 
 O SDK repete em 429 e 5xx **somente** nas chamadas em que manda
-`Idempotency-Key`: consultas, análises e operações. A mesma chave faz a API
-devolver a resposta anterior em vez de cobrar de novo.
+`Idempotency-Key`: consultas, análises, mensagens, eventos e operações. A mesma
+chave faz a API devolver a resposta anterior em vez de cobrar de novo. Não
+repete o que a mesma chave devolveria igual (`limite_destino`, `limite_diario`,
+`teto_excedido`, `envio_incerto`, `envio_recusado`), e todo erro traz a chave
+usada em `$e->chaveIdempotencia`.
 
 Criar sessão de Verify **não** tem idempotência na API, então o SDK **não
 repete** ali, qualquer que seja a configuração. Repetir criaria uma segunda
@@ -296,6 +370,9 @@ $radar = new RadarData(new Configuracao(
 composer install
 vendor/bin/phpunit
 vendor/bin/pint
+
+# contrato contra uma api de verdade, com token de SANDBOX
+RADARDATA_CONTRATO_BASE=http://127.0.0.1:8000/api/v2 RADARDATA_CONTRATO_TOKEN=... vendor/bin/phpunit tests/ContratoTest.php
 ```
 
 ## Licença

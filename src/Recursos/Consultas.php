@@ -36,8 +36,21 @@ class Consultas
             'POST',
             $slug,
             ['documento' => $documento] + $extras,
-            chaveIdempotencia: $chaveIdempotencia ?? self::chave(),
+            chaveIdempotencia: $chaveIdempotencia ?: self::chave(),
         );
+    }
+
+    /**
+     * O resultado de uma consulta demorada, pelo `consulta_id` que a criacao ou o webhook
+     * `consulta.concluida` devolveu. Vem o corpo inteiro: o estado fica sempre em
+     * `meta.status` (`em_andamento`, `concluida`, `erro` ou `expirada`), e um erro terminal
+     * chega aqui como resposta, em `error`, e nao como excecao.
+     *
+     * @return array<string, mixed>
+     */
+    public function resultado(string $id): array
+    {
+        return $this->t->pedir('GET', 'consultas/'.rawurlencode($id), envelope: true);
     }
 
     /** Chave nova, no formato que a api aceita. */

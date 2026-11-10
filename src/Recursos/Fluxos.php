@@ -43,9 +43,9 @@ class Fluxos
      * @param  array<string, mixed>  $definicao
      * @return array{valida: bool, preco: int, preco_por_consulta: array<string, int>, preco_incerto: bool}
      */
-    public function validar(array $definicao): array
+    public function validar(array $definicao, ?string $alvo = null): array
     {
-        return $this->t->pedir('POST', 'analises/fluxos/validar', ['definicao' => $definicao]);
+        return $this->t->pedir('POST', 'analises/fluxos/validar', ['definicao' => $definicao] + ($alvo !== null ? ['alvo' => $alvo] : []));
     }
 
     /**

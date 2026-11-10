@@ -13,6 +13,13 @@ namespace RadarData\Erros;
  */
 class ErroRadarData extends \RuntimeException
 {
+    /**
+     * A chave de idempotencia usada, quando houve uma. Depois de `FalhaDeRede`, `Conflito`
+     * ou `envio_incerto`, repita com ELA, e nao com uma nova: a nova pode cobrar ou mandar
+     * de novo o que ja saiu.
+     */
+    public ?string $chaveIdempotencia = null;
+
     public function __construct(
         string $mensagem,
         public readonly ?string $codigo = null,

@@ -6,6 +6,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Response;
+use RadarData\Erros\Conflito;
 use RadarData\Erros\EntradaInvalida;
 use RadarData\Erros\ErroDoServidor;
 use RadarData\Erros\ErroRadarData;
@@ -63,7 +64,12 @@ class Transporte
         bool $envelope = false,
         // Partes de um envio de arquivo, no formato `multipart` do Guzzle. Exclui `$corpo`.
         ?array $multipart = null,
+        // Cabecalhos a mais, como a assinatura do corpo em `eventos()->enviar()`.
+        array $cabecalhos = [],
+        // O corpo ja serializado, quando o que vai assinado tem de ser exatamente o que sai.
+        ?string $corpoCru = null,
     ): array {
+        $extras = $cabecalhos;
         $cabecalhos = [
             'Authorization' => 'Bearer '.$this->config->token,
             'Accept' => 'application/json',
@@ -77,8 +83,11 @@ class Transporte
             $cabecalhos['Idempotency-Key'] = $chaveIdempotencia;
         }
 
-        $opcoes = ['headers' => $cabecalhos];
-        if ($corpo !== null) {
+        $opcoes = ['headers' => $cabecalhos + $extras];
+        if ($corpoCru !== null) {
+            $opcoes['body'] = $corpoCru;
+            $opcoes['headers']['Content-Type'] = 'application/json';
+        } elseif ($corpo !== null) {
             $opcoes['json'] = $corpo;
         }
         if ($multipart !== null) {
@@ -107,22 +116,44 @@ class Transporte
                     continue;
                 }
 
+                $ultimo->chaveIdempotencia = $chaveIdempotencia;
+
                 throw $ultimo;
             }
 
             $status = $resposta->getStatusCode();
 
-            // 429 e 5xx valem nova tentativa; o resto e resposta final.
-            if (($status === 429 || $status >= 500) && $i < $tentativas) {
+            // 429 e 5xx valem nova tentativa; o resto e resposta final. Menos os codigos que a
+            // mesma chave devolve iguais: repetir so faria esperar o `Retry-After` a toa.
+            if (($status === 429 || $status >= 500) && $i < $tentativas && ! $this->final($resposta)) {
                 $this->esperar($i, $resposta);
 
                 continue;
             }
 
-            return $this->interpretar($resposta, $envelope);
+            try {
+                return $this->interpretar($resposta, $envelope);
+            } catch (ErroRadarData $e) {
+                // A chave vai no erro: sem ela, quem nao passou uma propria nao tem como
+                // repetir com a mesma, e gerar outra mandaria de novo o que talvez ja saiu.
+                $e->chaveIdempotencia = $chaveIdempotencia;
+
+                throw $e;
+            }
         }
 
         throw $ultimo ?? new ErroRadarData('Falha desconhecida no transporte.');
+    }
+
+    /** Recusas que a mesma chave devolve iguais: limite atingido, ou envio que ja terminou mal. */
+    private const CODIGOS_FINAIS = ['limite_destino', 'limite_diario', 'teto_excedido', 'envio_incerto', 'envio_recusado'];
+
+    private function final(Response $resposta): bool
+    {
+        $corpo = json_decode((string) $resposta->getBody(), true);
+        $resposta->getBody()->rewind();
+
+        return is_array($corpo) && in_array($corpo['error']['code'] ?? null, self::CODIGOS_FINAIS, true);
     }
 
     /** @return array<string, mixed> */
@@ -155,6 +186,7 @@ class Transporte
             $status === 402 => new SaldoInsuficiente($mensagem, $codigo, $status, $corpo),
             $status === 403 => new SemEscopo($mensagem, $codigo, $status, $corpo),
             $status === 404 => new NaoEncontrado($mensagem, $codigo, $status, $corpo),
+            $status === 409 => new Conflito($mensagem, $codigo, $status, $corpo),
             $status === 422 => new EntradaInvalida($mensagem, $codigo, $status, $corpo),
             $status === 429 => new MuitasTentativas($mensagem, $codigo, $status, $corpo),
             $status >= 500 => new ErroDoServidor($mensagem, $codigo, $status, $corpo),
