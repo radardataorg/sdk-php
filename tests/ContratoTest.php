@@ -11,7 +11,8 @@ use RadarData\RadarData;
 /**
  * Contrato contra uma api de verdade (D-0130). Os outros testes usam respostas falsas, e
  * foi assim que `decidir()` mandou o campo errado sem ninguem ver. Roda so com as duas
- * variaveis, e com token de SANDBOX: nada gasta saldo nem manda mensagem.
+ * variaveis, e com token de SANDBOX: nada gasta saldo nem manda mensagem. A empresa do token
+ * precisa do WhatsApp e do Messenger liberados no catalogo.
  *
  *   RADARDATA_CONTRATO_BASE=http://127.0.0.1:8765/api/v2 RADARDATA_CONTRATO_TOKEN=... vendor/bin/phpunit tests/ContratoTest.php
  */
@@ -71,6 +72,15 @@ class ContratoTest extends TestCase
     {
         $r = $this->radar->eventos()->enviar('contrato.teste', 'contrato-php-evt-'.microtime(true), ['x' => 1]);
         $this->assertSame([], $r['data']['analises']);
+    }
+
+    public function test_messenger_texto_com_etiqueta_em_sandbox_e_de_graca(): void
+    {
+        $r = $this->radar->mensagens()->enviar('24718302957461803', 'Contrato do SDK', canal: 'messenger', etiqueta: 'atendimento_humano');
+        $this->assertTrue($r['meta']['sandbox']);
+        $this->assertSame(0, $r['meta']['preco']);
+        $this->assertSame('messenger', $r['mensagem']['canal']);
+        $this->assertArrayHasKey('conexao', $r['mensagem']);
     }
 
     public function test_whatsapp_modelo_em_sandbox(): void

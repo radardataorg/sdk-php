@@ -15,7 +15,9 @@ use RadarData\Erros\Conflito;
 use RadarData\Erros\EntradaInvalida;
 use RadarData\Erros\ErroDoServidor;
 use RadarData\Erros\FalhaDeRede;
+use RadarData\Erros\SaldoInsuficiente;
 use RadarData\RadarData;
+use RadarData\Recursos\Mensagens;
 
 /** Mensagens e resultado de consulta (D-0130): o SMS repete com a mesma chave, porque a api devolve a primeira. */
 class MensagensTest extends TestCase
@@ -208,5 +210,38 @@ class MensagensTest extends TestCase
         $this->assertSame(['canal' => 'whatsapp', 'para' => '+5519984250269', 'modelo' => ['nome' => 'pedido_enviado', 'parametros' => ['Maria', '48213'], 'idioma' => 'pt_BR'], 'de' => str_repeat('n', 24)], json_decode((string) $this->enviados[0]['request']->getBody(), true));
         $this->assertSame('de='.str_repeat('n', 24), $this->enviados[1]['request']->getUri()->getQuery());
         $this->assertSame('pedido_enviado', $modelos[0]['nome']);
+    }
+
+    public function test_messenger_responde_a_recebida_com_de_e_conexao(): void
+    {
+        $pagina = str_repeat('p', 24);
+        $recebida = ['id' => str_repeat('m', 24), 'canal' => 'messenger', 'direcao' => 'entrada', 'conexao' => $pagina, 'de' => '24718302957461803', 'nome' => null, 'texto' => 'oi'];
+        $r = $this->radar([new Response(201, [], json_encode(['data' => ['canal' => 'messenger', 'para' => '***1803', 'conexao' => $pagina, 'preco' => 0] + self::ACEITA, 'meta' => ['preco' => 0]]))])
+            ->mensagens()->enviar($recebida['de'], 'Ola, como posso ajudar?', canal: Mensagens::CANAL_MESSENGER, de: $recebida['conexao']);
+
+        $this->assertSame(['canal' => 'messenger', 'para' => '24718302957461803', 'texto' => 'Ola, como posso ajudar?', 'de' => $pagina], json_decode((string) $this->enviados[0]['request']->getBody(), true));
+        $this->assertSame($pagina, $r['mensagem']['conexao']);
+        $this->assertSame(0, $r['meta']['preco']);
+    }
+
+    public function test_instagram_com_etiqueta_de_atendimento_humano(): void
+    {
+        $this->radar([new Response(201, [], json_encode(['data' => self::ACEITA, 'meta' => []]))])
+            ->mensagens()->enviar('24718302957461803', 'Seguimos com o seu caso.', canal: 'instagram', etiqueta: Mensagens::ETIQUETA_ATENDIMENTO_HUMANO);
+
+        $this->assertSame(['canal' => 'instagram', 'para' => '24718302957461803', 'texto' => 'Seguimos com o seu caso.', 'etiqueta' => 'atendimento_humano'], json_decode((string) $this->enviados[0]['request']->getBody(), true));
+    }
+
+    public function test_mensalidade_em_aberto_vira_saldo_insuficiente_sem_repetir(): void
+    {
+        $radar = $this->radar([new Response(402, [], json_encode(['error' => ['code' => 'mensalidade_em_aberto', 'message' => 'x']]))]);
+
+        try {
+            $radar->mensagens()->enviar('24718302957461803', 'oi', canal: 'messenger');
+            $this->fail('deveria lancar');
+        } catch (SaldoInsuficiente $e) {
+            $this->assertSame('mensalidade_em_aberto', $e->codigo);
+        }
+        $this->assertCount(1, $this->enviados);
     }
 }
