@@ -145,6 +145,38 @@ class Transporte
         throw $ultimo ?? new ErroRadarData('Falha desconhecida no transporte.');
     }
 
+    /**
+     * Download: a resposta de sucesso sao bytes. Erro continua vindo como excecao, igual
+     * a `pedir()`. Sem repeticao: baixar de novo e so chamar de novo.
+     *
+     * @return array{conteudo: string, tipo: string, nome: string}
+     */
+    public function baixar(string $caminho): array
+    {
+        try {
+            $resposta = $this->http->request('GET', ltrim($caminho, '/'), ['headers' => [
+                'Authorization' => 'Bearer '.$this->config->token,
+                'Accept' => 'application/json',
+                'User-Agent' => $this->config->userAgent(),
+            ]]);
+        } catch (ConnectException|RequestException $e) {
+            throw new FalhaDeRede('Não foi possível falar com o RadarData: '.$e->getMessage(), codigo: 'falha_de_rede', anterior: $e);
+        }
+
+        $status = $resposta->getStatusCode();
+        if ($status < 200 || $status >= 300) {
+            $this->interpretar($resposta);
+        }
+
+        preg_match('/filename="?([^";]+)"?/i', $resposta->getHeaderLine('Content-Disposition'), $m);
+
+        return [
+            'conteudo' => (string) $resposta->getBody(),
+            'tipo' => trim(explode(';', $resposta->getHeaderLine('Content-Type') ?: 'application/octet-stream')[0]),
+            'nome' => $m[1] ?? 'documento',
+        ];
+    }
+
     /** Recusas que a mesma chave devolve iguais: limite atingido, ou envio que ja terminou mal. */
     private const CODIGOS_FINAIS = ['limite_destino', 'limite_diario', 'teto_excedido', 'envio_incerto', 'envio_recusado'];
 

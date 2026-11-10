@@ -53,6 +53,17 @@ class Consultas
         return $this->t->pedir('GET', 'consultas/'.rawurlencode($id), envelope: true);
     }
 
+    /**
+     * Baixa um documento de processo pelo `id` da lista `documentos` de uma consulta de
+     * documentos publicos ou de autos. Nao cobra: o valor foi o da consulta.
+     *
+     * @return array{conteudo: string, tipo: string, nome: string}
+     */
+    public function baixarDocumento(string $id): array
+    {
+        return $this->t->baixar('processos/documentos/'.rawurlencode($id));
+    }
+
     /** Chave nova, no formato que a api aceita. */
     public static function chave(): string
     {

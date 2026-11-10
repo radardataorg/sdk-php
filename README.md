@@ -106,6 +106,46 @@ $r = $radar->consultas()->resultado($consultaId);
 
 Erro terminal chega aqui como resposta, em `$r['error']`, e não como exceção.
 
+### Documentos do processo
+
+`processo-documentos-publicos` e `processo-autos` são consultas demoradas. O
+resultado traz `documentos`, cada um com um `id` para baixar. O download não
+cobra: o valor foi o da consulta.
+
+```php
+$r = $radar->consultas()->resultado($consultaId);
+foreach ($r['data']['documentos'] as $d) {
+    $arquivo = $radar->consultas()->baixarDocumento($d['id']); // conteudo, tipo, nome
+    file_put_contents($arquivo['nome'], $arquivo['conteudo']);
+}
+```
+
+Os autos pedem o certificado digital da sua empresa no campo `certificado`:
+
+```php
+$radar->consultas()->executar('processo-autos', '0018063-19.2013.8.26.0002', ['certificado' => $certificadoId]);
+```
+
+### Certificado digital
+
+Escopo `certificados`, que só o administrador da conta concede, e só com token
+de produção. O arquivo e a senha não voltam em nenhuma resposta, e cada
+certificado serve só à sua empresa.
+
+```php
+$c = $radar->certificados()->cadastrar('/caminho/escritorio.pfx', getenv('SENHA_DO_PFX'), 'Escritório SP', [
+    // Só para tribunais que pedem código do aplicativo autenticador.
+    ['tribunal' => 'TRF2', 'sistemas' => ['EPROC-TRF2'], 'secret_2fa' => getenv('SEGREDO_2FA')],
+]);
+$certificadoId = $c['id'];
+
+$radar->certificados()->listar();
+$radar->certificados()->remover($certificadoId);
+```
+
+Mandar o mesmo arquivo de novo devolve o certificado que já existe. O envio
+não é repetido sozinho em erro.
+
 Para saber o que a **sua** conta pode consultar, e por quanto:
 
 ```php
@@ -269,6 +309,15 @@ Cobrança adiantada a cada 30 dias. A novidade chega pelo webhook
 $m = $radar->monitoramentosJudiciais()->criar('monitoramento-documento', ['documento' => '12345678909', 'nome' => 'Fornecedor principal']);
 $eventos = $radar->monitoramentosJudiciais()->eventos($m['id']); // ['data' => [...], 'meta' => ['paginas' => ...]]
 $radar->monitoramentosJudiciais()->cancelar($m['id']); // vale até o fim do período pago
+```
+
+O aviso de diário oficial traz `conteudo.pagina_pdf` quando o diário informa a
+página:
+
+```php
+if ($evento['conteudo']['pagina_pdf'] ?? null) {
+    $pdf = $radar->monitoramentosJudiciais()->paginaDoDiario($evento['conteudo']['pagina_pdf']);
+}
 ```
 
 No catálogo, `$servico->monitoramento` diz quais serviços se usam assim, e
