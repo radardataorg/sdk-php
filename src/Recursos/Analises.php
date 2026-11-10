@@ -46,12 +46,27 @@ class Analises
         return $this->t->pedir('GET', 'analises/'.rawurlencode($id));
     }
 
-    /** @return array<string, mixed> */
-    public function decidir(string $id, string $decisao, ?string $motivo = null): array
+    /**
+     * Responde a analise que parou esperando voce (`pendencia.tipo` = `manual`).
+     *
+     * O corpo e `acao`, e nao os campos de `pendencia.campos`: aqueles
+     * descrevem o formulario que voce mostra para uma pessoa. Ate a 0.3.0
+     * este metodo mandava `decisao`, e a api recusava toda chamada com 422.
+     *
+     * Ao aprovar, a resposta ja traz o proximo passo: quando e a prova de
+     * vida, `pendencia.url` vem aqui, e nao num webhook separado.
+     *
+     * @param  string  $acao  `aprovar` ou `recusar`
+     * @param  string|null  $motivo  obrigatorio ao recusar
+     * @param  string|null  $responsavel  quem do seu time decidiu; alguns produtos exigem
+     * @return array<string, mixed>
+     */
+    public function decidir(string $id, string $acao, ?string $motivo = null, ?string $responsavel = null): array
     {
         return $this->t->pedir('POST', 'analises/'.rawurlencode($id).'/decisao', array_filter([
-            'decisao' => $decisao,
+            'acao' => strtolower($acao),
             'motivo' => $motivo,
+            'responsavel' => $responsavel,
         ], fn ($v) => $v !== null));
     }
 

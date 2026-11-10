@@ -19,10 +19,16 @@ class SessaoVerify
         public readonly ?string $resultado = null,
         public readonly ?string $expiraEm = null,
         public readonly ?string $referenceId = null,
-        /** Quanto este run custou para voce, em centavos. */
+        /**
+         * Quanto esta sessao custou para voce, em centavos.
+         *
+         * @deprecated use `$valorCentavos`; e o mesmo numero, com o nome que a api passou a usar.
+         */
         public readonly int $custoCentavos = 0,
         /** @var array<string, mixed> O corpo cru, para o que o SDK nao tipou. */
         public readonly array $cru = [],
+        /** O que esta sessao custou para voce, em centavos. */
+        public readonly int $valorCentavos = 0,
     ) {}
 
     /** @param array<string, mixed> $d */
@@ -35,8 +41,11 @@ class SessaoVerify
             resultado: $d['outcome'] ?? null,
             expiraEm: $d['expires_at'] ?? null,
             referenceId: $d['reference_id'] ?? null,
-            custoCentavos: (int) ($d['custo_total_centavos'] ?? 0),
+            custoCentavos: $valor = (int) ($d['valor_total_centavos'] ?? $d['custo_total_centavos'] ?? 0),
             cru: $d,
+            // `valor_total_centavos` desde a api v0.124.0; `custo_total_centavos`
+            // sai da v2 depois do aviso aos clientes, e o SDK le os dois ate la.
+            valorCentavos: $valor,
         );
     }
 

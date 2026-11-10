@@ -5,6 +5,7 @@ namespace RadarData;
 use RadarData\Recursos\Analises;
 use RadarData\Recursos\Catalogo;
 use RadarData\Recursos\Consultas;
+use RadarData\Recursos\Documentos;
 use RadarData\Recursos\Fluxos;
 use RadarData\Recursos\MonitoramentosJudiciais;
 use RadarData\Recursos\Verify;
@@ -53,6 +54,12 @@ class RadarData
     public function analises(): Analises
     {
         return new Analises($this->transporte);
+    }
+
+    /** Documentos que entram numa analise, enviados antes dela. Escopo `analises`. */
+    public function documentos(): Documentos
+    {
+        return new Documentos($this->transporte);
     }
 
     /** Monitoramento judicial, cobrado por ciclo de 30 dias. Escopo `consultas`. */

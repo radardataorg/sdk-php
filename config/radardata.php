@@ -23,8 +23,15 @@ return [
     'tentativas' => (int) env('RADARDATA_TENTATIVAS', 3),
 
     /*
-     * Segredo que assina os webhooks que te mandamos. E o `webhook_secret` do
-     * fluxo (Verify) ou o da conta (Motor), que voce ve no painel.
+     * Segredo que assina os webhooks que te mandamos. E o da conta, que assina
+     * os eventos de analise, e voce ve em Painel > Webhooks.
      */
     'webhook_secret' => env('RADARDATA_WEBHOOK_SECRET'),
+
+    /*
+     * Segredo do webhook de um fluxo de Verify usado solto, sem analise em
+     * volta. Cada fluxo tem o seu, diferente do da conta: conferir um evento
+     * de sessao com `webhook_secret` falha sempre.
+     */
+    'verify_webhook_secret' => env('RADARDATA_VERIFY_WEBHOOK_SECRET'),
 ];

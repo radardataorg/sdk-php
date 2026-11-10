@@ -38,6 +38,8 @@ php artisan vendor:publish --tag=radardata-config
 ```dotenv
 RADARDATA_TOKEN=seu-token
 RADARDATA_WEBHOOK_SECRET=o-segredo-que-assina-seus-webhooks
+# Só se você usa Verify solto, sem análise: cada fluxo tem o seu segredo.
+RADARDATA_VERIFY_WEBHOOK_SECRET=o-segredo-do-fluxo
 ```
 
 ```php
@@ -121,9 +123,12 @@ O resultado chega por **webhook**. Dá para consultar também:
 $sessao = $radar->verify()->sessao($sessao->id);
 
 if ($sessao->concluida() && $sessao->aprovada()) {
-    // ...
+    echo $sessao->valorCentavos;   // quanto a sessão custou para você
 }
 ```
+
+`custoCentavos` continua existindo com o mesmo número, mas está depreciado: use
+`valorCentavos`.
 
 > **Criar sessão não é idempotente.** Se der timeout, **não chame de novo às
 > cegas**: você pagaria duas sessões. Mande um `reference_id` seu e procure por
@@ -134,9 +139,56 @@ if ($sessao->concluida() && $sessao->aprovada()) {
 Assíncrono: criar devolve o id, o resultado chega por webhook.
 
 ```php
-$analise = $radar->analises()->criar('kyc-pf', ['cpf' => '12345678909']);
-$estado  = $radar->analises()->mostrar($analise['id']);
+$analise = $radar->analises()->criar(
+    'kyc-pf',
+    ['cpf' => '12345678909'],
+    chaveIdempotencia: 'cadastro-90321',   // um id seu: repetir não cobra de novo
+);
+$estado = $radar->analises()->mostrar($analise['id']);
 ```
+
+### Documentos
+
+Produtos que leem documentos recebem o arquivo **antes** da análise. Você envia,
+guarda o `id` e manda na entrada:
+
+```php
+$identidade = $radar->documentos()->enviar('/tmp/rg.jpg', 'identidade');
+$contrato   = $radar->documentos()->enviar($recursoAberto, 'contrato_social', 'contrato.pdf');
+
+$radar->analises()->criar('abertura-de-conta', [
+    'cpf' => '52998224725',
+    'cnpj' => '55016784000138',
+    'documentos' => [
+        ['id' => $identidade['id'], 'tipo' => 'identidade'],
+        ['id' => $contrato['id'], 'tipo' => 'contrato_social'],
+    ],
+]);
+```
+
+JPEG, PNG ou PDF, até 10 MB. Os tipos estão em `Documentos::TIPOS`. Documento
+que não entra em análise nenhuma expira em 24 horas. O envio **não se repete
+sozinho**: a API não tem idempotência ali.
+
+### Quando a decisão é sua
+
+Quando a análise para esperando o seu time (`pendencia.tipo` = `manual` no
+evento `analise.pendente`), responda:
+
+```php
+$r = $radar->analises()->decidir(
+    $id,
+    'aprovar',                          // ou 'recusar', que exige o motivo
+    motivo: 'Confirmado com o titular.',
+    responsavel: 'ana@sualoja.com.br',  // alguns produtos exigem
+);
+
+// Se o próximo passo é a prova de vida, o link já vem aqui:
+$link = $r['pendencia']['url'] ?? null;
+```
+
+> Até a 0.3.0 este método mandava `decisao` e a API recusava toda chamada com
+> 422. A partir da 0.4.0 manda `acao`, que é o contrato da API.
 
 ## Monitoramentos judiciais
 

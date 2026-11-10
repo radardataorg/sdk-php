@@ -61,6 +61,8 @@ class Transporte
         ?string $chaveIdempotencia = null,
         // O corpo inteiro, com `meta`, em vez de so o `data`: listas paginadas.
         bool $envelope = false,
+        // Partes de um envio de arquivo, no formato `multipart` do Guzzle. Exclui `$corpo`.
+        ?array $multipart = null,
     ): array {
         $cabecalhos = [
             'Authorization' => 'Bearer '.$this->config->token,
@@ -78,6 +80,9 @@ class Transporte
         $opcoes = ['headers' => $cabecalhos];
         if ($corpo !== null) {
             $opcoes['json'] = $corpo;
+        }
+        if ($multipart !== null) {
+            $opcoes['multipart'] = $multipart;
         }
         if ($query !== []) {
             $opcoes['query'] = $query;
