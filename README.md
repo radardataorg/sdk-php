@@ -2,7 +2,8 @@
 
 SDK oficial do [RadarData](https://radardata.com.br) para PHP 8.2+, com
 integração pronta para Laravel. Embrulha a API pública (`/api/v2`): consultas,
-Verify (verificação de identidade), Motor de Análises e webhooks.
+Verify (verificação de identidade), Motor de Análises, mensagens (SMS,
+WhatsApp, Messenger e Instagram) e webhooks.
 
 A API continua disponível para quem preferir chamá-la direto. Este pacote
 existe para você não precisar.
@@ -240,7 +241,11 @@ $link = $r['pendencia']['url'] ?? null;
 > Até a 0.3.0 este método mandava `decisao` e a API recusava toda chamada com
 > 422. A partir da 0.4.0 manda `acao`, que é o contrato da API.
 
-## Mensagens (SMS)
+## Mensagens
+
+SMS, WhatsApp, Messenger e Instagram saem pelo mesmo método, mudando o canal.
+
+### SMS
 
 Escopo `mensagens`, que **não vem ligado por padrão**: marque ao criar o token.
 Cobra por mensagem aceita; o que falha volta para o saldo.
@@ -299,6 +304,67 @@ $modelos = $radar->mensagens()->modelos();   // os do número principal
 - Eventos: `mensagem.recebida` (com `texto`, `de` e `nome` de quem escreveu, para
   você responder), `mensagem.entregue`, `mensagem.lida` e `mensagem.falhou`. O
   conteúdo some da Radar Data em 30 dias.
+
+### Messenger e Instagram
+
+O mesmo método, com o canal `messenger` ou `instagram`. A página do Facebook e o
+perfil profissional do Instagram são conectados no painel, pelo login da Meta. Aqui
+só se **responde**: a conversa começa quando a pessoa escreve para a página ou para
+o perfil, e a mensagem dela chega no webhook `mensagem.recebida`.
+
+Para responder, o `de` da mensagem recebida (o id da pessoa naquele canal) vai no
+`$para`, e o `conexao` (a página ou o perfil que recebeu) vai no `de`:
+
+```php
+use RadarData\RadarData;
+use RadarData\Recursos\Mensagens;
+use RadarData\Webhooks\Assinatura;
+
+Route::post('/radardata/webhook', function (Request $request, RadarData $radar) {
+    $evento = Assinatura::exigir($request->getContent(), $request->header('X-RadarData-Signature'), config('radardata.webhook_secret'));
+
+    $recebida = $evento['mensagem'] ?? [];
+    if (($evento['event'] ?? null) === 'mensagem.recebida' && in_array($recebida['canal'] ?? null, ['messenger', 'instagram'], true)) {
+        $radar->mensagens()->enviar(
+            $recebida['de'],
+            'Oi! Já vamos te atender.',
+            'resposta-'.$recebida['id'],   // reenvio do webhook não responde duas vezes
+            canal: $recebida['canal'],
+            de: $recebida['conexao'],
+        );
+    }
+
+    return response()->noContent();
+});
+```
+
+- **Janela de 24 horas**: só dá para responder até 24 horas depois da última
+  mensagem da pessoa. Fora dela, `EntradaInvalida` com `codigo` = `fora_da_janela`.
+  Não há modelo como no WhatsApp: quem precisa voltar a falar é a pessoa.
+- **Atendimento humano, até 7 dias**: quando quem responde é uma pessoa da sua
+  equipe, passe a etiqueta `atendimento_humano` e a janela vai a 7 dias. É regra da
+  Meta: não use para mensagem automática.
+
+```php
+$radar->mensagens()->enviar($recebida['de'], 'Conferi o seu pedido: sai amanhã.',
+    canal: Mensagens::CANAL_MESSENGER,
+    de: $recebida['conexao'],
+    etiqueta: Mensagens::ETIQUETA_ATENDIMENTO_HUMANO,
+);
+```
+
+- Texto até 2.000 caracteres no Messenger e 1.000 no Instagram. Não há `modelo`.
+- **Cobrança**: mensalidade por página ou perfil conectado, a cada 30 dias, debitada
+  do saldo. A mensagem não é cobrada (`preco` = 0).
+- Mensalidade que não renovou por falta de saldo: `SaldoInsuficiente` com `codigo` =
+  `mensalidade_em_aberto`, e o webhook `canal.suspenso` avisa na hora (com a
+  `conexao`). A cobrança é refeita sozinha depois da recarga.
+- Sem página ou perfil conectado: `Conflito` com `canal_nao_conectado`; acesso
+  revogado na Meta: `Conflito` com `canal_sem_acesso`.
+- Na mensagem recebida, `de` é o id da pessoa e `nome` vem `null`. Nas enviadas, `para`
+  vem mascarado (`***1234`) e `conexao` diz por qual página ou perfil saiu.
+- Eventos: `mensagem.recebida`, `mensagem.entregue` (só Messenger), `mensagem.lida`,
+  `mensagem.falhou` e `canal.suspenso`.
 
 ## Eventos
 
@@ -389,7 +455,7 @@ Cada situação tem a sua classe, para você não comparar strings:
 | Classe | Quando |
 |---|---|
 | `NaoAutenticado` | 401, token ausente, inválido ou revogado |
-| `SaldoInsuficiente` | 402, a conta não tem saldo para a operação |
+| `SaldoInsuficiente` | 402, a conta não tem saldo para a operação, ou a mensalidade da página ou do perfil está em aberto (`mensalidade_em_aberto`) |
 | `SemEscopo` | 403, o token não tem o escopo daquela rota |
 | `NaoEncontrado` | 404 |
 | `Conflito` | 409, a mesma chave ainda em andamento ou usada em outro pedido |
