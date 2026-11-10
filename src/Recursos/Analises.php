@@ -36,7 +36,7 @@ class Analises
             'POST',
             'analises/'.rawurlencode($slug),
             ['campos' => $campos] + $opcoes,
-            chaveIdempotencia: $chaveIdempotencia ?? Consultas::chave(),
+            chaveIdempotencia: $chaveIdempotencia ?: Consultas::chave(),
         );
     }
 

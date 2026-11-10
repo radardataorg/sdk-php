@@ -6,9 +6,11 @@ use RadarData\Recursos\Analises;
 use RadarData\Recursos\Catalogo;
 use RadarData\Recursos\Consultas;
 use RadarData\Recursos\Documentos;
+use RadarData\Recursos\Eventos;
 use RadarData\Recursos\Fluxos;
 use RadarData\Recursos\Mensagens;
 use RadarData\Recursos\MonitoramentosJudiciais;
+use RadarData\Recursos\Operacoes;
 use RadarData\Recursos\Verify;
 use RadarData\Recursos\Webhooks;
 
@@ -73,6 +75,18 @@ class RadarData
     public function fluxos(): Fluxos
     {
         return new Fluxos($this->transporte);
+    }
+
+    /** Gatilho por evento: seu sistema conta o que aconteceu e as analises acordam. Escopo `analises`. */
+    public function eventos(): Eventos
+    {
+        return new Eventos($this->transporte);
+    }
+
+    /** Registro de operacao para o COAF (factoring). Escopo `analises`. */
+    public function operacoes(): Operacoes
+    {
+        return new Operacoes($this->transporte);
     }
 
     /** SMS, e depois os outros canais no mesmo metodo. Escopo `mensagens`. */

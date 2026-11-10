@@ -36,7 +36,7 @@ class Consultas
             'POST',
             $slug,
             ['documento' => $documento] + $extras,
-            chaveIdempotencia: $chaveIdempotencia ?? self::chave(),
+            chaveIdempotencia: $chaveIdempotencia ?: self::chave(),
         );
     }
 

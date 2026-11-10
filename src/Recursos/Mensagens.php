@@ -39,7 +39,7 @@ class Mensagens
             'POST',
             'mensagens',
             ['canal' => $canal, 'para' => $para, 'texto' => $texto],
-            chaveIdempotencia: $chaveIdempotencia ?? Consultas::chave(),
+            chaveIdempotencia: $chaveIdempotencia ?: Consultas::chave(),
             envelope: true,
         );
 
