@@ -7,7 +7,7 @@ use GuzzleHttp\Client;
 /** O que o SDK precisa saber para falar com o RadarData. */
 class Configuracao
 {
-    public const VERSAO = '0.6.0';
+    public const VERSAO = '0.7.0';
 
     public function __construct(
         /** Token de API da empresa, criado no painel. Nunca o de sessao do painel. */
