@@ -7,6 +7,7 @@ use RadarData\Recursos\Catalogo;
 use RadarData\Recursos\Consultas;
 use RadarData\Recursos\Documentos;
 use RadarData\Recursos\Fluxos;
+use RadarData\Recursos\Mensagens;
 use RadarData\Recursos\MonitoramentosJudiciais;
 use RadarData\Recursos\Verify;
 use RadarData\Recursos\Webhooks;
@@ -72,6 +73,12 @@ class RadarData
     public function fluxos(): Fluxos
     {
         return new Fluxos($this->transporte);
+    }
+
+    /** SMS, e depois os outros canais no mesmo metodo. Escopo `mensagens`. */
+    public function mensagens(): Mensagens
+    {
+        return new Mensagens($this->transporte);
     }
 
     public function webhooks(): Webhooks
