@@ -28,22 +28,48 @@ class Mensagens
      * a de um envio que falhou devolve o mesmo erro. Para codigo de acesso, passe uma chave
      * sua ligada ao pedido (`pedido-48213-codigo`), de 1 a 80 caracteres.
      *
+     * WhatsApp (`$canal = 'whatsapp'`): `$de` e o `id` do numero conectado por onde sai (sem
+     * ele, o principal). Texto livre so ate 24 horas depois da ultima mensagem da pessoa, e
+     * sem cobranca; fora disso, `$modelo` = `['nome' => ..., 'idioma' => 'pt_BR', 'parametros'
+     * => [...]]`, aprovado na Meta, que e o que e cobrado.
+     *
      * Erro `envio_incerto` (`ErroDoServidor`, 504): nao confirmamos se saiu, e nao foi
      * cobrado. Reenviar com chave nova pode fazer a pessoa receber duas.
      *
      * @return array{mensagem: array<string, mixed>, meta: array{saldo?: int, preco?: int, sandbox?: bool}}
      */
-    public function enviar(string $para, string $texto, ?string $chaveIdempotencia = null, string $canal = 'sms'): array
+    public function enviar(string $para, ?string $texto, ?string $chaveIdempotencia = null, string $canal = 'sms', ?string $de = null, ?array $modelo = null): array
     {
+        $corpo = ['canal' => $canal, 'para' => $para];
+        if ($modelo !== null) {
+            $corpo['modelo'] = $modelo + ['idioma' => 'pt_BR', 'parametros' => []];
+        } else {
+            $corpo['texto'] = (string) $texto;
+        }
+        if ($de !== null && $de !== '') {
+            $corpo['de'] = $de;
+        }
+
         $r = $this->t->pedir(
             'POST',
             'mensagens',
-            ['canal' => $canal, 'para' => $para, 'texto' => $texto],
+            $corpo,
             chaveIdempotencia: $chaveIdempotencia ?: Consultas::chave(),
             envelope: true,
         );
 
         return ['mensagem' => $r['data'] ?? [], 'meta' => $r['meta'] ?? []];
+    }
+
+    /**
+     * Os modelos de WhatsApp de um numero conectado (o principal, sem `$de`): `nome`, `idioma`,
+     * `status`, `categoria`, `texto` e quantos `parametros`. Criar e aprovar e na Meta.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function modelos(?string $de = null): array
+    {
+        return $this->t->pedir('GET', 'mensagens/modelos', null, $de !== null && $de !== '' ? ['de' => $de] : []);
     }
 
     /**

@@ -275,6 +275,31 @@ $pagina = $radar->mensagens()->listar(1, 25);  // sem o texto
 $uma = $radar->mensagens()->obter($id);        // com o texto, por 30 dias
 ```
 
+### WhatsApp
+
+O mesmo método, com o canal `whatsapp`. O número da empresa é conectado no painel,
+pelo cadastro da própria Meta, e o envio sai pelo principal ou pelo que você indicar.
+
+```php
+// Responder dentro de 24 horas da última mensagem da pessoa: texto livre, sem cobrança.
+$radar->mensagens()->enviar('+5511999999999', 'Seu pedido saiu para entrega.', canal: 'whatsapp');
+
+// Fora da janela, só modelo aprovado na Meta. É o que é cobrado.
+$radar->mensagens()->enviar('+5511999999999', null, 'pedido-48213-aviso', 'whatsapp',
+    modelo: ['nome' => 'pedido_enviado', 'idioma' => 'pt_BR', 'parametros' => ['Maria', '48213']],
+);
+
+$modelos = $radar->mensagens()->modelos();   // os do número principal
+```
+
+- Texto livre até 4096 caracteres, com emoji e acento.
+- Fora da janela sem modelo: `EntradaInvalida` com `codigo` = `fora_da_janela`.
+- Sem número conectado: `Conflito` com `canal_nao_conectado`.
+- A Meta cobra a conversa direto na conta de WhatsApp do cliente.
+- Eventos: `mensagem.recebida` (com `texto`, `de` e `nome` de quem escreveu, para
+  você responder), `mensagem.entregue`, `mensagem.lida` e `mensagem.falhou`. O
+  conteúdo some da Radar Data em 30 dias.
+
 ## Eventos
 
 O seu sistema conta o que aconteceu e a configuração do lado da RadarData
